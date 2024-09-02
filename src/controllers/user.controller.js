@@ -5,8 +5,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
-import mongoose from "mongoose";
-import { pipeline } from "stream";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
