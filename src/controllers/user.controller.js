@@ -5,6 +5,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+import mongoose from "mongoose";
+import { pipeline } from "stream";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -438,6 +440,66 @@ const getChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+
+  if (!userId) {
+    return new ApiError(400, "Invalid user");
+  }
+
+  // 1. Get User watch history
+  // 2. Get Videos from every watch history
+  // 3. Get Owner info from every video
+
+  const watchHistory = await User.aggregate([
+    {
+      $match: { _id: userId },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    userName: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  console.log("Watch History: ", watchHistory);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, watchHistory, "Watch history fetched successfully")
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -449,4 +511,5 @@ export {
   updateUserAvatar,
   updateUserCoverImage,
   getChannelProfile,
+  getWatchHistory,
 };
